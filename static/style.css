@@ -63,3 +63,39 @@ select {
     padding: 5px;
     margin: 10px 0;
 }
+
+.audio-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.audio-container audio {
+    flex: 1;
+}
+
+.download-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: #f0f0f0;
+    border-radius: 50%;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+
+.download-btn:hover {
+    background: #e0e0e0;
+}
+
+.download-btn span {
+    font-size: 18px;
+}
+
+.history-item-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}

@@ -16,7 +16,12 @@
             <textarea id="text-input" placeholder="Enter text to convert to speech..."></textarea>
             
             <div class="playback-controls">
-                <audio id="audio-player" controls></audio>
+                <div class="audio-container">
+                    <audio id="audio-player" controls></audio>
+                    <a id="current-download" class="download-btn" download hidden>
+                        <span>⬇️</span>
+                    </a>
+                </div>
                 <button id="synthesize-btn">Convert to Speech</button>
             </div>
             
@@ -38,7 +43,17 @@
             const voices = await response.json();
             const voiceSelect = document.getElementById('voice-select');
             
-            voices.forEach(voice => {
+            // Sort voices to prioritize pt-BR and en-US
+            const sortedVoices = voices.sort((a, b) => {
+                const getPriority = (locale) => {
+                    if (locale.startsWith('pt-BR')) return 0;
+                    if (locale.startsWith('en-US')) return 1;
+                    return 2;
+                };
+                return getPriority(a.Locale) - getPriority(b.Locale);
+            });
+            
+            sortedVoices.forEach(voice => {
                 const option = document.createElement('option');
                 option.value = voice.Name;
                 option.textContent = `${voice.ShortName} (${voice.Locale})`;
@@ -60,13 +75,23 @@
                 
                 const result = await response.json();
                 const audioPlayer = document.getElementById('audio-player');
+                const currentDownload = document.getElementById('current-download');
                 audioPlayer.src = result.audio_url;
+                currentDownload.href = result.audio_url;
+                currentDownload.hidden = false;
                 
                 const historyItem = document.createElement('div');
                 historyItem.className = 'history-item';
                 historyItem.innerHTML = `
-                    <p>${result.text.substring(0, 50)}...</p>
-                    <audio src="${result.audio_url}" controls></audio>
+                    <div class="history-item-content">
+                        <p>${result.text.substring(0, 50)}...</p>
+                        <div class="audio-container">
+                            <audio src="${result.audio_url}" controls></audio>
+                            <a href="${result.audio_url}" class="download-btn" download>
+                                <span>⬇️</span>
+                            </a>
+                        </div>
+                    </div>
                 `;
                 document.getElementById('history-list').prepend(historyItem);
                 
