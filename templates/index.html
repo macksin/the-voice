@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>The Voice - TTS Application</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="voice-selection">
+            <h2>Voice Selection</h2>
+            <select id="voice-select"></select>
+        </div>
+        
+        <div class="main-content">
+            <h2>Text to Speech</h2>
+            <textarea id="text-input" placeholder="Enter text to convert to speech..."></textarea>
+            
+            <div class="playback-controls">
+                <audio id="audio-player" controls></audio>
+                <button id="synthesize-btn">Convert to Speech</button>
+            </div>
+            
+            <div class="subtitles-box">
+                <h3>Subtitles</h3>
+                <div id="subtitles-content"></div>
+            </div>
+        </div>
+        
+        <div class="history">
+            <h2>History</h2>
+            <div id="history-list"></div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const response = await fetch('/get_voices');
+            const voices = await response.json();
+            const voiceSelect = document.getElementById('voice-select');
+            
+            voices.forEach(voice => {
+                const option = document.createElement('option');
+                option.value = voice.Name;
+                option.textContent = `${voice.ShortName} (${voice.Locale})`;
+                voiceSelect.appendChild(option);
+            });
+            
+            document.getElementById('synthesize-btn').addEventListener('click', async () => {
+                const text = document.getElementById('text-input').value;
+                const voice = voiceSelect.value;
+                
+                const formData = new FormData();
+                formData.append('text', text);
+                formData.append('voice', voice);
+                
+                const response = await fetch('/synthesize', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                const audioPlayer = document.getElementById('audio-player');
+                audioPlayer.src = result.audio_url;
+                
+                const historyItem = document.createElement('div');
+                historyItem.className = 'history-item';
+                historyItem.innerHTML = `
+                    <p>${result.text.substring(0, 50)}...</p>
+                    <audio src="${result.audio_url}" controls></audio>
+                `;
+                document.getElementById('history-list').prepend(historyItem);
+                
+                document.getElementById('subtitles-content').textContent = text;
+            });
+        });
+    </script>
+</body>
+</html>
