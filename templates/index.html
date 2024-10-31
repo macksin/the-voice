@@ -9,10 +9,25 @@
         <div class="voice-selection">
             <h2>Voice Selection</h2>
             <select id="voice-select"></select>
+            <button class="default-voice-btn" id="default-voice-btn">Default Voice (Ava)</button>
         </div>
         
+        <div class="processing-overlay">
+            <div class="processing-message">
+                <div class="loading-spinner"></div>
+                <span>Processing audio...</span>
+            </div>
+        </div>
+
         <div class="main-content">
             <h2>Text to Speech</h2>
+            <div class="text-utils">
+                <button class="util-btn" data-fix="linebreaks">Fix Line Breaks</button>
+                <button class="util-btn" data-fix="hyphenation">Fix Hyphenation</button>
+                <button class="util-btn" data-fix="spaces">Fix Spaces</button>
+                <button class="util-btn" data-fix="all">Fix All</button>
+                <button class="util-btn util-btn-highlight" data-fix="selected">Fix Selected</button>
+            </div>
             <textarea id="text-input" placeholder="Enter text to convert to speech..."></textarea>
             
             <div class="playback-controls">
@@ -22,7 +37,9 @@
                         <span>⬇️</span>
                     </a>
                 </div>
-                <button id="synthesize-btn">Convert to Speech</button>
+                <button id="synthesize-btn">
+                    <span class="btn-content">Convert to Speech</span>
+                </button>
             </div>
             
             <div class="subtitles-box">
@@ -40,7 +57,9 @@
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             const response = await fetch('/get_voices');
-            const voices = await response.json();
+            const data = await response.json();
+            const voices = data.voices;
+            const defaultVoiceName = data.default_voice;
             const voiceSelect = document.getElementById('voice-select');
             
             // Sort voices to prioritize pt-BR and en-US
@@ -57,45 +76,121 @@
                 const option = document.createElement('option');
                 option.value = voice.Name;
                 option.textContent = `${voice.ShortName} (${voice.Locale})`;
+                if (voice.Name === defaultVoiceName) {
+                    option.selected = true;
+                }
                 voiceSelect.appendChild(option);
+            });
+
+            // Add default voice button handler
+            document.getElementById('default-voice-btn').addEventListener('click', () => {
+                if (defaultVoiceName) {
+                    voiceSelect.value = defaultVoiceName;
+                }
             });
             
             document.getElementById('synthesize-btn').addEventListener('click', async () => {
-                const text = document.getElementById('text-input').value;
-                const voice = voiceSelect.value;
+                const btn = document.getElementById('synthesize-btn');
+                const overlay = document.querySelector('.processing-overlay');
+                const btnContent = btn.querySelector('.btn-content');
                 
-                const formData = new FormData();
-                formData.append('text', text);
-                formData.append('voice', voice);
+                try {
+                    btn.disabled = true;
+                    btnContent.innerHTML = '<div class="loading-spinner"></div>Processing...';
+                    overlay.classList.add('active');
+                    
+                    const text = document.getElementById('text-input').value;
+                    const voice = voiceSelect.value;
+                    
+                    const formData = new FormData();
+                    formData.append('text', text);
+                    formData.append('voice', voice);
+                    
+                    const response = await fetch('/synthesize', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    const audioPlayer = document.getElementById('audio-player');
+                    const currentDownload = document.getElementById('current-download');
+                    audioPlayer.src = result.audio_url;
+                    currentDownload.href = result.audio_url;
+                    currentDownload.hidden = false;
+                    
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    historyItem.innerHTML = `
+                        <div class="history-item-content">
+                            <p>${result.text.substring(0, 50)}...</p>
+                            <div class="audio-container">
+                                <audio src="${result.audio_url}" controls></audio>
+                                <a href="${result.audio_url}" class="download-btn" download>
+                                    <span>⬇️</span>
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('history-list').prepend(historyItem);
+                    
+                    document.getElementById('subtitles-content').textContent = text;
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('An error occurred while processing the audio');
+                } finally {
+                    btn.disabled = false;
+                    btnContent.textContent = 'Convert to Speech';
+                    overlay.classList.remove('active');
+                }
+            });
+
+            document.querySelectorAll('.util-btn').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const text = document.getElementById('text-input').value;
+                    const fixType = button.dataset.fix;
+                    
+                    const response = await fetch('/fix_text', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            text: text,
+                            fix_type: fixType
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    document.getElementById('text-input').value = result.fixed_text;
+                });
+            });
+
+            document.querySelector('[data-fix="selected"]').addEventListener('click', async () => {
+                const textarea = document.getElementById('text-input');
+                const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
                 
-                const response = await fetch('/synthesize', {
+                if (!selectedText) {
+                    alert('Please select some text first');
+                    return;
+                }
+                
+                const response = await fetch('/fix_text', {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: selectedText,
+                        fix_type: 'all'
+                    })
                 });
                 
                 const result = await response.json();
-                const audioPlayer = document.getElementById('audio-player');
-                const currentDownload = document.getElementById('current-download');
-                audioPlayer.src = result.audio_url;
-                currentDownload.href = result.audio_url;
-                currentDownload.hidden = false;
+                const newText = textarea.value.substring(0, textarea.selectionStart) +
+                              result.fixed_text +
+                              textarea.value.substring(textarea.selectionEnd);
                 
-                const historyItem = document.createElement('div');
-                historyItem.className = 'history-item';
-                historyItem.innerHTML = `
-                    <div class="history-item-content">
-                        <p>${result.text.substring(0, 50)}...</p>
-                        <div class="audio-container">
-                            <audio src="${result.audio_url}" controls></audio>
-                            <a href="${result.audio_url}" class="download-btn" download>
-                                <span>⬇️</span>
-                            </a>
-                        </div>
-                    </div>
-                `;
-                document.getElementById('history-list').prepend(historyItem);
-                
-                document.getElementById('subtitles-content').textContent = text;
+                textarea.value = newText;
             });
         });
     </script>

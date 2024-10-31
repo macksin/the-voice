@@ -99,3 +99,113 @@ select {
     flex-direction: column;
     gap: 10px;
 }
+
+.text-utils {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.util-btn {
+    padding: 5px 10px;
+    background: #e0e0e0;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.util-btn:hover {
+    background: #d0d0d0;
+}
+
+.util-btn-highlight {
+    background: #4CAF50;
+    color: white;
+}
+
+.util-btn-highlight:hover {
+    background: #45a049;
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255,255,255,.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+    margin-right: 8px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+#synthesize-btn {
+    background: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s, opacity 0.3s;
+}
+
+#synthesize-btn:hover {
+    background: #45a049;
+}
+
+#synthesize-btn:disabled {
+    background: #cccccc;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.processing-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.processing-overlay.active {
+    display: flex;
+}
+
+.processing-message {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.default-voice-btn {
+    width: 100%;
+    padding: 8px;
+    margin-top: 10px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background 0.2s;
+}
+
+.default-voice-btn:hover {
+    background: #45a049;
+}

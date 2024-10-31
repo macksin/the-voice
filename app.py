@@ -6,6 +6,7 @@ import tempfile
 from datetime import datetime, timedelta
 import glob
 import atexit
+import re
 
 app = Flask(__name__)
 
@@ -24,6 +25,30 @@ def cleanup_old_files():
         except OSError:
             pass
 
+def fix_linebreaks(text):
+    """Fix unnecessary linebreaks in paragraphs"""
+    # Replace single newlines but keep paragraph breaks
+    text = re.sub(r'(?<!\n)\n(?!\n)', ' ', text)
+    # Normalize multiple newlines to double newline
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+def fix_hyphenation(text):
+    """Fix hyphenated words split across lines"""
+    return re.sub(r'(\w+)-\n(\w+)', r'\1\2', text)
+
+def normalize_spaces(text):
+    """Normalize multiple spaces and remove trailing/leading spaces"""
+    return ' '.join(text.split())
+
+async def get_ava_voice():
+    """Get the exact Ava voice name from the available voices"""
+    voices = await edge_tts.list_voices()
+    for voice in voices:
+        if 'Ava' in voice['ShortName'] and voice['Locale'] == 'en-US':
+            return voice['Name']
+    return None
+
 @app.route('/')
 def index():
     cleanup_old_files()
@@ -32,7 +57,11 @@ def index():
 @app.route('/get_voices')
 async def get_voices():
     voices = await edge_tts.list_voices()
-    return jsonify(voices)
+    default_voice = await get_ava_voice()
+    return jsonify({
+        'voices': voices,
+        'default_voice': default_voice
+    })
 
 @app.route('/synthesize', methods=['POST'])
 async def synthesize():
@@ -55,6 +84,22 @@ async def synthesize():
         'text': text,
         'voice': voice
     })
+
+@app.route('/fix_text', methods=['POST'])
+def fix_text():
+    text = request.json.get('text', '')
+    fix_type = request.json.get('fix_type', 'all')
+    
+    if fix_type == 'linebreaks':
+        text = fix_linebreaks(text)
+    elif fix_type == 'hyphenation':
+        text = fix_hyphenation(text)
+    elif fix_type == 'spaces':
+        text = normalize_spaces(text)
+    elif fix_type == 'all':
+        text = normalize_spaces(fix_hyphenation(fix_linebreaks(text)))
+    
+    return jsonify({'fixed_text': text})
 
 @app.route('/temp_audio/<filename>')
 def serve_temp_audio(filename):
