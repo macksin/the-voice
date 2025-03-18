@@ -71,97 +71,264 @@ The application will open in your default web browser. If it doesn't open automa
 - For audio playback issues, ensure your system's audio output is properly configured
 
 
-Let me clarify your questions about the **MCP SDK** and whether you need it for your Proof of Concept (PoC). I’ll break this down step by step to make it as clear as possible.
+Here’s a step-by-step guide to create a simple Proof of Concept (PoC) using Anthropic’s Model Context Protocol (MCP) with your own API and tools, even without access to Claude Desktop. Since you have your own API with tools, we’ll leverage MCP to expose those tools and integrate them with Anthropic’s Claude model via the API. The solution involves setting up an MCP server and writing a basic script to simulate the client functionality that Claude Desktop would normally provide.
 
 ---
 
-### What is the MCP SDK?
-The **Model Context Protocol (MCP)** is a standard way for Anthropic’s AI model, Claude, to communicate with external tools or APIs (like the ones you have). It uses **WebSockets** and **JSON-RPC** to send and receive messages. Think of MCP as a set of rules for how this communication happens—it’s a protocol, not a specific piece of software or SDK.
+## Overview
+MCP is an open protocol from Anthropic that standardizes how AI applications connect to external data sources and tools. Normally, Claude Desktop acts as an MCP client, but since you don’t have access to it, we’ll create a simple workaround. You’ll:
+1. Build an MCP server to expose your API’s tools.
+2. Write a Python script to interact with the Claude API and communicate with your MCP server.
 
-An **SDK (Software Development Kit)**, on the other hand, is a ready-made set of tools or libraries that makes it easier to follow those rules. So, an "MCP SDK" would be a library provided by Anthropic to simplify implementing the MCP protocol.
-
----
-
-### Where is the MCP SDK?
-As of now, Anthropic has **open-sourced the MCP protocol**, meaning they’ve shared the details of how it works publicly. However, based on available information, they **do not appear to provide a specific MCP SDK** for implementing the protocol (e.g., for setting up an MCP server to expose your tools). Instead:
-
-- Anthropic provides an **SDK for interacting with Claude via their API** (e.g., the `anthropic` Python package), but this is for sending queries to Claude, not for building the MCP server that connects your tools.
-- For the MCP server part (exposing your API tools), you’re expected to implement the protocol yourself based on its specification, unless Anthropic releases an MCP-specific SDK in the future.
-
-So, to answer your question directly: **There doesn’t seem to be an official MCP SDK available from Anthropic right now**. You can check their [official documentation](https://docs.anthropic.com) or GitHub repositories for updates, but currently, you’ll need to work with the protocol manually.
+This PoC will demonstrate how Claude can use your API tools through MCP.
 
 ---
 
-### Do You Need the MCP SDK?
-**No, you don’t strictly need an MCP SDK** to create your PoC. Here’s why:
+## Requirements
+- **Anthropic API Key**: You’ll need this to access Claude via the API.
+- **Python**: For both the MCP server and the client script.
+- **Libraries**: Install the Anthropic SDK (`anthropic`), the Anthropic MCP SDK (if available separately), and `websockets` for WebSocket communication.
 
-- **Manual Implementation Works**: You can build an MCP server yourself using standard tools like Python’s `websockets` library (for WebSocket communication) and JSON (for handling RPC requests). This server will let Claude interact with your API tools by following the MCP protocol rules.
-- **You Already Have Tools**: Since you mentioned you have your own API with tools, you can expose those tools through this manually built MCP server. Claude can then use them via the Anthropic API.
-- **Anthropic SDK for Claude**: You’ll still use Anthropic’s existing SDK (e.g., `anthropic` in Python) to send queries to Claude and handle responses, but this is separate from implementing MCP for your tools.
-
-If Anthropic did provide an MCP SDK, it might make setting up the server faster or easier by handling the protocol details for you. But without it, you can still achieve your goal with a manual approach.
+Run this to install the necessary libraries:
+```bash
+pip install anthropic websockets
+```
 
 ---
 
-### How to Do This Simply Without an MCP SDK
-Since you don’t have access to Claude Desktop, here’s a straightforward way to create your PoC:
+## Step-by-Step Guide
 
-1. **Create an MCP Server**:
-   - Use Python with the `websockets` library to set up a WebSocket server.
-   - Implement the MCP protocol by handling JSON-RPC requests (e.g., when Claude asks to use your tools, the server runs the tool and sends back the result).
-   - Connect your existing API tools to this server so Claude can call them.
+### 1. Set Up an MCP Server
+The MCP server will wrap your API tools and make them accessible via the MCP protocol.
 
-2. **Write a Client Script**:
-   - Use Anthropic’s Python SDK (`anthropic`) to send user queries to Claude via their API.
-   - When Claude needs to use a tool, this script will pass the request to your MCP server (over WebSockets) and send the tool’s response back to Claude.
+#### What You’ll Do
+- Use Anthropic’s Python SDK (or a reference MCP server example) to create a server.
+- Define your API tools in MCP format (name, description, input schema).
+- Configure the server to use WebSocket transport for easy communication.
 
-3. **Test the Integration**:
-   - Run your MCP server and client script together.
-   - Send a test query to Claude through the script, and ensure it can use your tools via the MCP server.
+#### Example MCP Server Code
+Here’s a basic example (adapt it to your API):
 
-Here’s a simplified example of what this might look like in Python:
-
-#### MCP Server (exposing your tools)
 ```python
+import json
 import asyncio
 import websockets
-import json
+from your_api_module import fetch_data  # Replace with your API logic
 
-async def handle_connection(websocket, path):
+# Define your tools
+TOOLS = [
+    {
+        "name": "get_data",
+        "description": "Fetch data from my company API",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "param": {"type": "string", "description": "Parameter for the API"}
+            },
+            "required": ["param"]
+        }
+    }
+]
+
+# Handle tool invocation
+async def handle_tool(websocket, request):
+    method = request.get("method")
+    if method == "invokeTool":
+        tool_name = request["params"]["name"]
+        args = request["params"]["arguments"]
+        
+        if tool_name == "get_data":
+            # Call your API
+            result = fetch_data(args["param"])  # Replace with your API call
+            response = {
+                "jsonrpc": "2.0",
+                "id": request["id"],
+                "result": result
+            }
+        else:
+            response = {
+                "jsonrpc": "2.0",
+                "id": request["id"],
+                "error": {"code": -32601, "message": "Tool not found"}
+            }
+        
+        await websocket.send(json.dumps(response))
+
+# WebSocket server
+async def mcp_server(websocket, path):
     async for message in websocket:
         request = json.loads(message)
-        # Example: Claude asks to use a tool
-        if request["method"] == "your_tool_name":
-            result = your_api_tool_function(request["params"])  # Call your API tool
-            response = {"id": request["id"], "result": result}
-            await websocket.send(json.dumps(response))
+        await handle_tool(websocket, request)
 
-start_server = websockets.serve(handle_connection, "localhost", 8765)
+# Start the server
+start_server = websockets.serve(mcp_server, "localhost", 8765)
 asyncio.get_event_loop().run_until_complete(start_server)
+print("MCP Server running on ws://localhost:8765")
 asyncio.get_event_loop().run_forever()
 ```
 
-#### Client Script (interacting with Claude)
-```python
-import anthropic
+#### Notes
+- Replace `fetch_data` with your actual API call logic.
+- This server listens on `ws://localhost:8765`. Adjust the port if needed.
+- Run this script in a separate terminal or process.
 
-client = anthropic.Anthropic(api_key="your_api_key")
-response = client.messages.create(
-    model="claude-3-opus-20240229",
-    max_tokens=1024,
-    messages=[{"role": "user", "content": "Use my tool to do X"}],
-    tools=[{"name": "your_tool_name", "endpoint": "ws://localhost:8765"}]
-)
-print(response.content)
+### 2. Create a Client Script
+Since you don’t have Claude Desktop, this script will act as the MCP client, bridging the Claude API and your MCP server.
+
+#### What You’ll Do
+- Use the Anthropic SDK to send user queries to Claude.
+- Define the same tools in the API request as in your MCP server.
+- Handle tool use requests by sending JSON-RPC messages to the MCP server via WebSocket.
+- Send tool results back to Claude and display the response.
+
+#### Example Client Script
+```python
+import asyncio
+import json
+import websockets
+from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
+
+# Initialize Anthropic client
+client = Anthropic(api_key="your-anthropic-api-key")  # Replace with your API key
+
+# Define tools (must match MCP server)
+TOOLS = [
+    {
+        "name": "get_data",
+        "description": "Fetch data from my company API",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "param": {"type": "string"}
+            },
+            "required": ["param"]
+        }
+    }
+]
+
+# Function to call MCP server
+async def call_mcp_tool(tool_name, tool_args):
+    async with websockets.connect("ws://localhost:8765") as websocket:
+        request = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "invokeTool",
+            "params": {"name": tool_name, "arguments": tool_args}
+        }
+        await websocket.send(json.dumps(request))
+        response = await websocket.recv()
+        return json.loads(response)["result"]
+
+# Main PoC function
+async def run_poc():
+    user_input = "Get the latest data for 'example_param'"  # Hardcoded for simplicity
+    print(f"User: {user_input}")
+
+    # Initial message to Claude
+    message = client.messages.create(
+        model="claude-3-opus-20240229",  # Or another Claude model
+        max_tokens=1000,
+        tools=TOOLS,
+        messages=[
+            {"role": "user", "content": f"{HUMAN_PROMPT}{user_input}{AI_PROMPT}"}
+        ]
+    )
+
+    # Check if Claude wants to use a tool
+    for content in message.content:
+        if content.type == "tool_use":
+            tool_name = content.name
+            tool_args = content.input
+            print(f"Claude wants to use tool: {tool_name} with args: {tool_args}")
+
+            # Call the MCP server
+            tool_result = await call_mcp_tool(tool_name, tool_args)
+            print(f"Tool result: {tool_result}")
+
+            # Send tool result back to Claude
+            response = client.messages.create(
+                model="claude-3-opus-20240229",
+                max_tokens=1000,
+                tools=TOOLS,
+                messages=[
+                    {"role": "user", "content": f"{HUMAN_PROMPT}{user_input}{AI_PROMPT}"},
+                    {"role": "assistant", "content": message.content},
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": content.id,
+                                "content": str(tool_result)
+                            }
+                        ]
+                    }
+                ]
+            )
+            final_response = response.content[0].text
+            print(f"Claude: {final_response}")
+            return
+
+    # If no tool use, print the response directly
+    print(f"Claude: {message.content[0].text}")
+
+# Run the PoC
+asyncio.run(run_poc())
 ```
 
-This is a basic setup—you’d need to flesh it out with your specific tools and error handling, but it shows how you can connect Claude to your API without an MCP SDK.
+#### Notes
+- Replace `"your-anthropic-api-key"` with your actual key.
+- The script assumes Claude returns a `tool_use` response. Adjust based on your API’s behavior.
+- For simplicity, the user input is hardcoded. You can modify it to accept live input with a loop.
+
+### 3. Run the PoC
+1. Start the MCP server:
+   ```bash
+   python mcp_server.py
+   ```
+2. Run the client script in another terminal:
+   ```bash
+   python client_script.py
+   ```
+3. Observe the output, which should show:
+   - The user query.
+   - Claude requesting a tool (if applicable).
+   - The tool result from your API via the MCP server.
+   - Claude’s final response.
 
 ---
 
-### Key Takeaways
-- **No MCP SDK Needed**: You can implement the MCP protocol manually with Python tools like `websockets` and JSON-RPC, so you don’t need a specific MCP SDK for your PoC.
-- **Where It Is**: There’s no official MCP SDK from Anthropic yet—just the protocol spec and their Claude API SDK.
-- **Simple Approach**: Build an MCP server for your tools and a client script to talk to Claude, as shown above.
+## How It Works
+- **User Query**: You send a query like "Get the latest data for 'example_param'".
+- **Claude API**: Claude decides if a tool is needed and returns a `tool_use` request.
+- **MCP Interaction**: The script sends an `invokeTool` request to the MCP server, which calls your API and returns the result.
+- **Response**: The script sends the result back to Claude, which generates a final response.
 
-If you’re still unsure or want help with the code, feel free to ask—I’m happy to assist further!
+---
+
+## Simplifications for the PoC
+- **Hardcoded Query**: The example uses a fixed query to trigger tool use. For a live demo, replace it with `input("Enter your query: ")`.
+- **Single Tool**: The example assumes one tool (`get_data`). Add more tools as needed.
+- **Local Setup**: Everything runs locally, which is fine for a PoC.
+
+---
+
+## Considerations
+- **Security**: If your API handles sensitive data, secure the MCP server (e.g., with authentication), though this can be skipped for a basic PoC.
+- **Error Handling**: Add basic error checks (e.g., WebSocket connection failures) for robustness.
+- **Scalability**: This is a local PoC. For production, consider hosting the MCP server and adding proper client integration.
+
+---
+
+## Output Example
+For a query like "Get the latest data for 'example_param'":
+```
+User: Get the latest data for 'example_param'
+Claude wants to use tool: get_data with args: {'param': 'example_param'}
+Tool result: {"data": "Sample data from your API"}
+Claude: The latest data for 'example_param' is: Sample data from your API.
+```
+
+---
+
+This PoC demonstrates how MCP can connect your API tools to Claude without Claude Desktop. You can expand it by adding more tools or refining the client script for a more interactive experience. Let me know if you need help adapting it to your specific API!
