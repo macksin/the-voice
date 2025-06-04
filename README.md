@@ -1,28 +1,33 @@
-Perfeito! Aqui está a tabela em Markdown puro, seguindo as boas práticas (limite de largura, sem linhas extras, cabeçalhos claros, sem tabelas aninhadas, e com explicação de cada coluna):
+# The Voice
 
-| Categoria                         | Feature Específica                                                                            | Fonte de Dados (Exemplo)                           | Viabilidade      | Racional / Notas                                                                                   |
-|------------------------------------|----------------------------------------------------------------------------------------------|----------------------------------------------------|------------------|----------------------------------------------------------------------------------------------------|
-| **Características da Mudança**     | Change Size (LOC add/modify/delete, #arquivos tocados, patch size)                           | Version Control (Git)                              | Alta             | Mudanças grandes são mais arriscadas e difíceis de revisar/testar.                                 |
-|                                    | Change Complexity (Complexidade cicl., Halstead, FanOut, NVAR, NCOMP, MaxBlockDepth, MI)     | Análise Estática (SonarQube), Git                  | Média            | Mais complexidade = mais risco de erro.                                                            |
-|                                    | Change Type (Bug Fix, Nova Feature, Refatoração, etc.)                                       | Issue Tracker (Jira), Mensagem de Commit           | Alta             | Tipos diferentes carregam riscos diferentes (ex: refatoração vs. bug fix).                         |
-|                                    | Change Scope/Dispersion (# subsistemas tocados)                                              | Git, Análise de Código                             | Média            | Mudanças que afetam muitos módulos aumentam chance de efeitos colaterais.                          |
-| **Atributos do Código**            | Code Churn (#commits recentes no arquivo/método)                                             | Git                                               | Alta             | Alta rotatividade indica instabilidade (“hotspot”).                                                |
-|                                    | Code Age (tempo desde última modificação)                                                    | Git (blame)                                        | Alta             | Código antigo/modificado pouco pode ser menos compreendido/mais arriscado.                         |
-|                                    | Histórico de Falhas do Componente (bugs/incidentes passados)                                 | Jira, PagerDuty, mapping código                    | Alta             | Componentes problemáticos tendem a continuar falhando.                                             |
-|                                    | Code Ownership Concentration (#autores, proporção maior autor)                               | Git (scripts)                                      | Média            | Muita autoria difusa pode aumentar risco.                                                          |
-|                                    | Code Quality/Readability (avisos, code smells, legibilidade)                                | SonarQube, Linters                                 | Média            | Baixa qualidade/legibilidade dificulta mudanças corretas.                                          |
-| **Processo de Desenvolvimento**     | Test Coverage (cobertura unitária, integração, E2E)                                          | CI/CD, cobertura (Cobertura, JaCoCo)               | Alta             | Baixa cobertura reduz confiança no change.                                                         |
-|                                    | Test Results (taxa aprovação CI, testes falhando)                                            | CI/CD                                              | Alta             | Falhas em testes indicam problemas diretos.                                                        |
-|                                    | Code Review (Tamanho do PR, Duração, Maturidade)                                             | Git, Code Review Tool (GitHub)                     | Média            | Revisões menores e maduras reduzem riscos.                                                         |
-|                                    | Lead Time / Deployment Frequency (DORA)                                                      | CI/CD, Git                                         | Alta             | Métricas de processo maduras correlacionam com mais qualidade/velocidade.                          |
-|                                    | Deployment Strategy (Canary, Blue-Green, Rolling, Big Bang)                                  | CI/CD                                              | Média            | Estratégias seguras (Canary, Blue-Green) limitam exposição a falhas.                               |
-| **Equipe/Desenvolvedor**           | Experiência do Dev no módulo (#contribuições no módulo - MEXP)                               | Git (scripts)                                      | Média            | Menos familiaridade do dev aumenta risco de erro.                                                  |
-|                                    | Team Workload/Activity (#mudanças concorrentes, WIP, commits recentes)                       | Jira, Git                                          | Alta/Média       | Sobrecarga ou alta atividade pode gerar mais erros.                                                |
-|                                    | Developer Tenure / Team Stability (histórico, turnover)                                     | Git, RH                                            | Baixa/Média      | Equipes mais estáveis entregam mudanças mais confiáveis.                                           |
-| **Ambiente & Dependências**         | Complexidade Arquitetural (#microserviços, acoplamento)                                     | Diagramas, análise de código                       | Média            | Ambientes complexos aumentam raio de impacto.                                                      |
-|                                    | Dependency Stability (estabilidade dos serviços, libs externas)                             | Ferramentas de dependências, monitoramento         | Média            | Dependências instáveis aumentam o risco de falha.                                                  |
-|                                    | Estabilidade do Ambiente Alvo (incidentes/alertas recentes)                                 | PagerDuty, Datadog, Splunk                         | Alta             | Deploy em ambiente instável eleva risco de problemas.                                              |
+A lightweight Flask application that converts text to speech using the [edge-tts](https://github.com/rany2/edge-tts) library. It offers text cleanup tools and lets you download the resulting audio.
 
-	•	Dicas de uso:
-	•	Pode colar direto no seu editor de Markdown, GitHub, Notion, etc.
-	•	Se quiser ajustar largura ou detalhamento, posso adaptar!
+![Application Interface](docs/app-interface.png)
+
+## Features
+
+- Select from Microsoft Edge voices ("Ava" is the default).
+- Fix line breaks, hyphenation and extra spaces in your text.
+- Preview and download each generated MP3 with subtitles.
+- History panel stores recent conversions and files are cleaned after an hour.
+
+## Setup
+
+1. Create and activate a virtual environment.
+2. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+3. Start the app:
+
+```bash
+python app.py
+```
+
+Open <http://localhost:5000> in your browser.
+
+## License
+
+This project is licensed under the Apache 2.0 License. See the [LICENSE](LICENSE) file for details.
