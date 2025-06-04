@@ -97,7 +97,11 @@ def fix_text():
     elif fix_type == 'spaces':
         text = normalize_spaces(text)
     elif fix_type == 'all':
-        text = normalize_spaces(fix_hyphenation(fix_linebreaks(text)))
+        # When fixing everything, apply hyphenation fix before removing
+        # line breaks so that words split across lines are joined correctly.
+        text = fix_hyphenation(text)
+        text = fix_linebreaks(text)
+        text = normalize_spaces(text)
     
     return jsonify({'fixed_text': text})
 
