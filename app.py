@@ -7,12 +7,18 @@ from datetime import datetime, timedelta
 import glob
 import atexit
 import re
+import tiktoken
+from transformers import AutoTokenizer
 
 app = Flask(__name__)
 
 # Create temporary directory
 TEMP_DIR = tempfile.mkdtemp()
 print(f"Temporary directory created at: {TEMP_DIR}")
+
+# Initialize tokenizers
+GPT_ENCODER = tiktoken.get_encoding("cl100k_base")
+LLAMA_TOKENIZER = AutoTokenizer.from_pretrained("hf-internal-testing/llama-tokenizer")
 
 def cleanup_old_files():
     """Remove files older than 1 hour"""
@@ -40,6 +46,18 @@ def fix_hyphenation(text):
 def normalize_spaces(text):
     """Normalize multiple spaces and remove trailing/leading spaces"""
     return ' '.join(text.split())
+
+def count_tokens_gpt(text: str) -> int:
+    """Count tokens using GPT-style encoding."""
+    return len(GPT_ENCODER.encode(text))
+
+def count_tokens_claude(text: str) -> int:
+    """Approximate Claude token count using the GPT encoder."""
+    return len(GPT_ENCODER.encode(text))
+
+def count_tokens_llama(text: str) -> int:
+    """Count tokens using Llama tokenizer."""
+    return len(LLAMA_TOKENIZER.encode(text))
 
 async def get_ava_voice():
     """Get the exact Ava voice name from the available voices"""
@@ -104,6 +122,15 @@ def fix_text():
         text = normalize_spaces(text)
     
     return jsonify({'fixed_text': text})
+
+@app.route('/count_tokens', methods=['POST'])
+def count_tokens():
+    text = request.json.get('text', '')
+    return jsonify({
+        'gpt': count_tokens_gpt(text),
+        'claude': count_tokens_claude(text),
+        'llama': count_tokens_llama(text)
+    })
 
 @app.route('/temp_audio/<filename>')
 def serve_temp_audio(filename):

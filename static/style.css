@@ -209,3 +209,13 @@ select {
 .default-voice-btn:hover {
     background: #45a049;
 }
+
+.token-count-box {
+    margin-top: 10px;
+    padding: 10px;
+    background: #ffffff;
+    border-radius: 5px;
+}
+.token-count-box p {
+    margin: 4px 0;
+}

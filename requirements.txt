@@ -1,3 +1,6 @@
 flask==2.3.3
 edge-tts==6.1.9
 flask[async]
+tiktoken
+transformers
+sentencepiece
