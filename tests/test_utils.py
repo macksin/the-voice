@@ -14,3 +14,12 @@ def test_fix_all_hyphenation_order():
         fixed = response.get_json()['fixed_text']
 
     assert fixed == "This is a hyphenated line."
+
+
+def test_count_tokens_route():
+    with app.app.test_client() as client:
+        response = client.post('/count_tokens', json={'text': 'Hello world'})
+        counts = response.get_json()
+    assert counts['gpt'] == 2
+    assert counts['claude'] == 2
+    assert counts['llama'] == 3

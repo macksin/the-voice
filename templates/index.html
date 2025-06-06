@@ -29,6 +29,13 @@
                 <button class="util-btn util-btn-highlight" data-fix="selected">Fix Selected</button>
             </div>
             <textarea id="text-input" placeholder="Enter text to convert to speech..."></textarea>
+
+            <div class="token-count-box">
+                <h3>Token Counts</h3>
+                <p>GPT: <span id="gpt-count">0</span></p>
+                <p>Claude: <span id="claude-count">0</span></p>
+                <p>Llama: <span id="llama-count">0</span></p>
+            </div>
             
             <div class="playback-controls">
                 <div class="audio-container">
@@ -162,6 +169,7 @@
                     
                     const result = await response.json();
                     document.getElementById('text-input').value = result.fixed_text;
+                    updateTokenCount();
                 });
             });
 
@@ -191,7 +199,26 @@
                               textarea.value.substring(textarea.selectionEnd);
                 
                 textarea.value = newText;
+                updateTokenCount();
             });
+
+            async function updateTokenCount() {
+                const text = document.getElementById('text-input').value;
+                const response = await fetch('/count_tokens', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+                const counts = await response.json();
+                document.getElementById('gpt-count').textContent = counts.gpt;
+                document.getElementById('claude-count').textContent = counts.claude;
+                document.getElementById('llama-count').textContent = counts.llama;
+            }
+
+            document.getElementById('text-input').addEventListener('input', updateTokenCount);
+            updateTokenCount();
         });
     </script>
 </body>
